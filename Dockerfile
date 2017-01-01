@@ -1,7 +1,6 @@
 FROM alpine:3.4
 MAINTAINER Rafał Krupiński
 ENV GOPATH=/go
-EXPOSE 8080
 ENTRYPOINT ["/go/bin/httpclient"]
 
 ADD . /go/src/bitbucket.org/hashnot/httpclient
