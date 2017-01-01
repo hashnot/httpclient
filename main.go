@@ -5,6 +5,9 @@ import (
 	"flag"
 	"github.com/hashnot/function"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func failOnErr(err error, msg string) {
@@ -24,6 +27,16 @@ func main() {
 	err = client.Setup(*verbose)
 	failOnErr(err, "Failed to start")
 
-	err = function.StartWithConfig(client, client.Function)
+	handler, err := function.StartWithConfig(client, client.Function)
 	failOnErr(err, "Failed to start")
+
+	wait()
+
+	handler.Stop()
+}
+
+func wait() {
+	exitSignal := make(chan os.Signal)
+	signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
+	<-exitSignal
 }

@@ -1,19 +1,17 @@
 package httpclient
 
 import (
-	"bitbucket.org/hashnot/httpclient/httptask"
 	"bytes"
 	"errors"
 	"github.com/hashnot/function"
 	"github.com/hashnot/function/amqptypes"
 	"github.com/rafalkrupinski/rev-api-gw/httplog"
-	"github.com/streadway/amqp"
-	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"text/template"
-	"log"
+	"reflect"
 )
 
 type HttpClient struct {
@@ -27,46 +25,44 @@ type HttpClient struct {
 //http body from payload
 //headers from configuration file
 //http response body to output payload
-func (c *HttpClient) Handle(i function.InputMessage, out function.OutChan) error {
-	input := &httptask.HttpInputMessage{}
-	err := i.DecodeBody(input)
-	if err != nil {
-		return err
-	}
-
-	wrapped := &httpInputMessage{
-		HttpInputMessage: input,
-		delivery:         i.Body(),
-	}
-
-	taskName := input.Task
-	task, ok := c.Tasks[taskName]
-
+func (c *HttpClient) Handle(i *function.Message) ([]*function.Message, error) {
+	taskValue, ok := i.Headers["task"]
 	if !ok {
-		return errors.New("Task '" + taskName + "' not found in configuration")
+		return nil, errors.New("No `task` header in message")
 	}
 
-	output, err := c.do(task, wrapped)
-	if err != nil {
-		return err
+	taskName, ok := taskValue.(string)
+	if !ok {
+		return nil, errors.New("`task` header not a string " + reflect.TypeOf(taskValue).String())
 	}
 
-	out <- &function.OutputMessage{output}
+	task, ok := c.Tasks[taskName]
+	if !ok {
+		return nil, errors.New("Task '" + taskName + "' not found in configuration")
+	}
 
-	return nil
+	output, err := task.do(i)
+
+	var result []*function.Message
+
+	if output != nil {
+		result = append(result, output)
+	}
+
+	return result, err
 }
 
-func (c *HttpClient) do(task *HttpTask, in *httpInputMessage) (*httptask.HttpOutputMessage, error) {
+func (task *HttpTask) do(in *function.Message) (*function.Message, error) {
 	source := task.Source
 
-	address, err := apply(source.addressTempl, in.Data)
+	address, err := apply(source.addressTempl, in)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Print(source.Method + " " + address)
 
-	req, err := http.NewRequest(source.Method, address, in.Body())
+	req, err := http.NewRequest(source.Method, address, bytes.NewReader(in.Body))
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +74,28 @@ func (c *HttpClient) do(task *HttpTask, in *httpInputMessage) (*httptask.HttpOut
 		return nil, err
 	}
 
+	return task.responseToMessage(resp)
+}
+
+func (task *HttpTask)responseToMessage(resp *http.Response) (*function.Message, error) {
 	body, err := ioutil.ReadAll(resp.Body)
-	result := &httptask.HttpOutputMessage{
-		Headers: resp.Header,
-		Payload: body,
+	if err != nil {
+		return nil, err
 	}
 
-	return result, err
+	if task.Output.OmitEmpty && len(body) == 0 {
+		return nil, nil
+	}
+
+	date, _ := http.ParseTime(resp.Header.Get("Date"))
+
+	var result = task.Output.Message
+
+	result.Body = body
+	result.Timestamp = date
+	result.ContentType = resp.Header.Get("Content-Type")
+
+	return &result, nil
 }
 
 func (client *HttpClient) Setup(verbose bool) error {
@@ -98,8 +109,8 @@ func (client *HttpClient) Setup(verbose bool) error {
 }
 
 type HttpTask struct {
-	Source *HttpInputSpec `yaml:"source"`
-	*amqptypes.Output `yaml:"output"`
+	Source HttpInputSpec `yaml:"source"`
+	Output OutputConfig  `yaml:"output"`
 }
 
 func (task *HttpTask) setup(name string, verbose bool) error {
@@ -154,21 +165,8 @@ func (spec *HttpInputSpec) setupTransport(verbose bool) error {
 	return nil
 }
 
-func apply(t *template.Template, data map[string]interface{}) (string, error) {
-	buffer := bytes.Buffer{}
-	err := t.Execute(&buffer, data)
+func apply(t *template.Template, data *function.Message) (string, error) {
+	buffer := new(bytes.Buffer)
+	err := t.Execute(buffer, data)
 	return buffer.String(), err
-}
-
-type httpInputMessage struct {
-	*httptask.HttpInputMessage
-	delivery *amqp.Delivery
-}
-
-func (i *httpInputMessage) ContentType() string {
-	return i.delivery.ContentType
-}
-
-func (i *httpInputMessage) Body() io.Reader {
-	return bytes.NewBufferString(i.Payload)
 }
