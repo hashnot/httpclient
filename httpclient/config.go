@@ -90,7 +90,7 @@ func (spec *HttpInputSpec) setupTransport(verbose bool) error {
 	return nil
 }
 
-func apply(t *template.Template, data *function.Message) (string, error) {
+func (data *httpMessage) apply(t *template.Template) (string, error) {
 	buffer := new(bytes.Buffer)
 	err := t.Execute(buffer, data)
 	return buffer.String(), err

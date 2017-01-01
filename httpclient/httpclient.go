@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"time"
 )
 
 //Input:
@@ -30,7 +31,7 @@ func (c *HttpClient) Handle(i *function.Message) ([]*function.Message, error) {
 		return nil, errors.New("Task '" + taskName + "' not found in configuration")
 	}
 
-	output, err := task.do(i)
+	output, err := task.do((*httpMessage)(i))
 
 	var result []*function.Message
 
@@ -41,10 +42,10 @@ func (c *HttpClient) Handle(i *function.Message) ([]*function.Message, error) {
 	return result, err
 }
 
-func (task *HttpTask) do(in *function.Message) (*function.Message, error) {
-	source := task.Source
+type httpMessage function.Message
 
-	address, err := apply(source.addressTempl, in)
+func (in *httpMessage) newRequest(source *HttpInputSpec) (*http.Request, error) {
+	address, err := in.apply(source.addressTempl)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +53,21 @@ func (task *HttpTask) do(in *function.Message) (*function.Message, error) {
 	log.Print(source.Method + " " + address)
 
 	req, err := http.NewRequest(source.Method, address, bytes.NewReader(in.Body))
+
+	if contentType := in.ContentType; contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+
+	if ts := in.Timestamp; (ts != time.Time{}) {
+		req.Header.Set("Date", ts.Format(http.TimeFormat))
+	}
+
+	return req, err
+}
+
+func (task *HttpTask) do(in *httpMessage) (*function.Message, error) {
+	source := task.Source
+	req, err := in.newRequest(&source)
 	if err != nil {
 		return nil, err
 	}
