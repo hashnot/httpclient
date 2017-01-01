@@ -66,7 +66,7 @@ func (task *HttpTask) do(in *function.Message) (*function.Message, error) {
 	return task.responseToMessage(resp)
 }
 
-func (task *HttpTask)responseToMessage(resp *http.Response) (*function.Message, error) {
+func (task *HttpTask) responseToMessage(resp *http.Response) (*function.Message, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err

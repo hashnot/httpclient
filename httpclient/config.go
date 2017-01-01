@@ -1,21 +1,21 @@
 package httpclient
 
 import (
+	"bytes"
+	"errors"
 	"github.com/hashnot/function"
 	"github.com/hashnot/function/amqptypes"
-	"net/url"
 	"github.com/rafalkrupinski/rev-api-gw/httplog"
-	"bytes"
-	"text/template"
 	"net/http"
-	"errors"
+	"net/url"
+	"text/template"
 )
 
 type HttpClient struct {
 	Function *amqptypes.Configuration `yaml:"function"`
 	Tasks    map[string]*HttpTask     `yaml:"tasks"`
 
-	verbose  bool
+	verbose bool
 }
 
 func (client *HttpClient) Setup(verbose bool) error {
@@ -52,9 +52,9 @@ func (task *HttpTask) setup(name string, verbose bool) error {
 }
 
 type HttpInputSpec struct {
-	Method       string `yaml:"method"`
-	Address      string `yaml:"address"`
-	Proxy        string `yaml:"proxy"`
+	Method  string `yaml:"method"`
+	Address string `yaml:"address"`
+	Proxy   string `yaml:"proxy"`
 
 	client       *http.Client
 	addressTempl *template.Template
