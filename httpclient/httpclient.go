@@ -53,7 +53,7 @@ func (c *HttpClient) Handle(i *function.Message) ([]*function.Message, error) {
 type httpMessage function.Message
 
 func (in *httpMessage) newRequest(source *HttpInputSpec) (*http.Request, error) {
-	address, err := in.apply(source.addressTempl)
+	address, err := source.Address.Apply(in)
 	if err != nil {
 		return nil, err
 	}

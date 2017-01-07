@@ -14,7 +14,9 @@ func (t *TemplateWrapper) UnmarshalText(text []byte) error {
 	str := string(text)
 	tmpl := template.New(str)
 	tmpl, err := tmpl.Parse(str)
-	t.template = tmpl
+	if err == nil {
+		t.template = tmpl
+	}
 	return err
 }
 
