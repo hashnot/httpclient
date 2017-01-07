@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/hashnot/httpclient/httpclient"
 	"flag"
 	"github.com/hashnot/function"
+	"github.com/hashnot/httpclient/httpclient"
 	"log"
 	"os"
 	"os/signal"
