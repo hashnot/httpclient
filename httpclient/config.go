@@ -1,14 +1,12 @@
 package httpclient
 
 import (
-	"bytes"
 	"errors"
 	"github.com/hashnot/function"
 	"github.com/hashnot/function/amqptypes"
 	"github.com/rafalkrupinski/rev-api-gw/httplog"
 	"net/http"
 	"net/url"
-	"text/template"
 )
 
 type HttpClient struct {
@@ -34,17 +32,12 @@ type OutputConfig struct {
 }
 
 type HttpTask struct {
-	Source HttpInputSpec `yaml:"source"`
-	Output OutputConfig  `yaml:"output"`
+	Source HttpInputSpec
+	Output OutputConfig
 }
 
 func (task *HttpTask) setup(name string, verbose bool) error {
-	err := task.Source.parseTemplates(name)
-	if err != nil {
-		return err
-	}
-
-	err = task.Source.setupTransport(verbose)
+	err := task.Source.setupTransport(verbose)
 	if err != nil {
 		return errors.New(name + ": " + err.Error())
 	}
@@ -52,18 +45,12 @@ func (task *HttpTask) setup(name string, verbose bool) error {
 }
 
 type HttpInputSpec struct {
-	Method  string `yaml:"method"`
-	Address string `yaml:"address"`
-	Proxy   string `yaml:"proxy"`
+	Method    string
+	Address   TemplateWrapper
+	Proxy     string
+	RateLimit *RateLimitSpec `yaml:"rateLimit"`
 
 	client       *http.Client
-	addressTempl *template.Template
-}
-
-func (spec *HttpInputSpec) parseTemplates(name string) error {
-	spec.addressTempl = template.New(name + ".address")
-	_, err := spec.addressTempl.Parse(spec.Address)
-	return err
 }
 
 func (spec *HttpInputSpec) setupTransport(verbose bool) error {
@@ -88,10 +75,4 @@ func (spec *HttpInputSpec) setupTransport(verbose bool) error {
 	httpClient := &http.Client{Transport: transport}
 	spec.client = httpClient
 	return nil
-}
-
-func (data *httpMessage) apply(t *template.Template) (string, error) {
-	buffer := new(bytes.Buffer)
-	err := t.Execute(buffer, data)
-	return buffer.String(), err
 }
