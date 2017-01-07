@@ -31,6 +31,14 @@ func (c *HttpClient) Handle(i *function.Message) ([]*function.Message, error) {
 		return nil, errors.New("Task '" + taskName + "' not found in configuration")
 	}
 
+	if limit := task.Source.RateLimit; limit != nil {
+		limiter, err := limit.Get(i)
+		if err != nil {
+			return nil, err
+		}
+		limitRate(limiter)
+	}
+
 	output, err := task.do((*httpMessage)(i))
 
 	var result []*function.Message

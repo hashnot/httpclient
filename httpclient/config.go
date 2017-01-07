@@ -34,8 +34,8 @@ type OutputConfig struct {
 }
 
 type HttpTask struct {
-	Source HttpInputSpec `yaml:"source"`
-	Output OutputConfig  `yaml:"output"`
+	Source HttpInputSpec
+	Output OutputConfig
 }
 
 func (task *HttpTask) setup(name string, verbose bool) error {
@@ -52,9 +52,10 @@ func (task *HttpTask) setup(name string, verbose bool) error {
 }
 
 type HttpInputSpec struct {
-	Method  string `yaml:"method"`
-	Address string `yaml:"address"`
-	Proxy   string `yaml:"proxy"`
+	Method    string
+	Address   string
+	Proxy     string
+	RateLimit *RateLimitSpec `yaml:"rateLimit"`
 
 	client       *http.Client
 	addressTempl *template.Template
