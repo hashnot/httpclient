@@ -9,45 +9,40 @@ import (
 	"net/http"
 	"reflect"
 	"time"
+	"strings"
 )
 
 //Input:
 //http body from payload
 //headers from configuration file
 //http response body to output payload
-func (c *HttpClient) Handle(i *function.Message) ([]*function.Message, error) {
+func (c *HttpClient) Handle(i *function.Message, p function.Publisher) error {
 	taskValue, ok := i.Headers["task"]
 	if !ok {
-		return nil, errors.New("No `task` header in message")
+		return errors.New("No `task` header in message")
 	}
 
 	taskName, ok := taskValue.(string)
 	if !ok {
-		return nil, errors.New("`task` header not a string " + reflect.TypeOf(taskValue).String())
+		return errors.New("`task` header not a string " + reflect.TypeOf(taskValue).String())
 	}
 
 	task, ok := c.Tasks[taskName]
 	if !ok {
-		return nil, errors.New("Task '" + taskName + "' not found in configuration")
+		return errors.New("Task '" + taskName + "' not found in configuration")
 	}
 
 	if limit := task.Source.RateLimit; limit != nil {
 		limiter, err := limit.Get(i)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		limitRate(limiter)
 	}
 
-	output, err := task.do((*httpMessage)(i))
+	err := task.do((*httpMessage)(i), p)
 
-	var result []*function.Message
-
-	if output != nil {
-		result = append(result, output)
-	}
-
-	return result, err
+	return err
 }
 
 type httpMessage function.Message
@@ -73,40 +68,45 @@ func (in *httpMessage) newRequest(source *HttpInputSpec) (*http.Request, error) 
 	return req, err
 }
 
-func (task *HttpTask) do(in *httpMessage) (*function.Message, error) {
+func (task *HttpTask) do(in *httpMessage, p function.Publisher) error {
 	source := task.Source
 	req, err := in.newRequest(&source)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// TODO headers
 	hc := source.client
 	resp, err := hc.Do(req)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return task.responseToMessage(resp)
+	return task.responseToMessage(resp, p)
 }
 
-func (task *HttpTask) responseToMessage(resp *http.Response) (*function.Message, error) {
+func (task *HttpTask) responseToMessage(resp *http.Response, p function.Publisher) error {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if task.Output.OmitEmpty && len(body) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	date, _ := http.ParseTime(resp.Header.Get("Date"))
 
-	var result = task.Output.Message
+	var result = p.NewFrom(task.Output.Template)
 
 	result.Body = body
 	result.Timestamp = date
 	result.ContentType = resp.Header.Get("Content-Type")
 
-	return &result, nil
+	for k, v := range resp.Header {
+		result.Headers["http."+k] = strings.Join(v,", ")
+	}
+
+	p.Publish(result)
+	return nil
 }

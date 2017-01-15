@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"errors"
-	"github.com/hashnot/function"
 	"github.com/hashnot/function/amqptypes"
 	"github.com/rafalkrupinski/rev-api-gw/httplog"
 	"net/http"
@@ -28,7 +27,7 @@ func (client *HttpClient) Setup(verbose bool) error {
 
 type OutputConfig struct {
 	OmitEmpty bool `yaml:"omitEmpty"`
-	function.Message
+	Template  *amqptypes.PublishingTemplate
 }
 
 type HttpTask struct {
@@ -50,7 +49,7 @@ type HttpInputSpec struct {
 	Proxy     string
 	RateLimit *RateLimitSpec `yaml:"rateLimit"`
 
-	client       *http.Client
+	client *http.Client
 }
 
 func (spec *HttpInputSpec) setupTransport(verbose bool) error {
