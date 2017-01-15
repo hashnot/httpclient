@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 	"reflect"
-	"time"
 	"strings"
+	"time"
 )
 
 //Input:
@@ -104,7 +104,7 @@ func (task *HttpTask) responseToMessage(resp *http.Response, p function.Publishe
 	result.ContentType = resp.Header.Get("Content-Type")
 
 	for k, v := range resp.Header {
-		result.Headers["http."+k] = strings.Join(v,", ")
+		result.Headers["http."+k] = strings.Join(v, ", ")
 	}
 
 	p.Publish(result)
