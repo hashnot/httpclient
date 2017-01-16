@@ -95,18 +95,27 @@ func (task *HttpTask) responseToMessage(resp *http.Response, p function.Publishe
 		return nil
 	}
 
-	date, _ := http.ParseTime(resp.Header.Get("Date"))
-
 	var result = p.NewFrom(task.Output.Template)
 
+	if dateHdr := resp.Header.Get("Date"); dateHdr != "" {
+		date, _ := http.ParseTime(dateHdr)
+		result.Timestamp = date
+	}
+
+	if typeHeader := resp.Header.Get("Content-Type"); typeHeader != "" {
+		result.ContentType = typeHeader
+	}
+
 	result.Body = body
-	result.Timestamp = date
-	result.ContentType = resp.Header.Get("Content-Type")
 
 	for k, v := range resp.Header {
 		result.Headers["http."+k] = strings.Join(v, ", ")
 	}
 
-	p.Publish(result)
-	return nil
+	if resp.StatusCode < 400 {
+		p.Publish(result)
+		return nil
+	} else {
+		return function.NewErrorMessage(result)
+	}
 }
