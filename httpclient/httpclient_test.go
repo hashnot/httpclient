@@ -7,8 +7,6 @@ import (
 	"net/http/httptest"
 	"testing"
 	"text/template"
-	"gopkg.in/yaml.v2"
-	"os"
 )
 
 type handler struct {
@@ -94,12 +92,11 @@ func TestOutput(t *testing.T) {
 			Address: "http://" + server.Listener.Addr().String() + "/",
 		},
 		Output: OutputConfig{
-			Message:function.Message{
-				Headers:map[string]interface{}{"task":"test"},
+			Message: function.Message{
+				Headers: map[string]interface{}{"task": "test"},
 			},
 		},
 	}
-
 
 	client := &HttpClient{
 		Tasks: map[string]*HttpTask{"test": task},

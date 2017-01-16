@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bitbucket.org/hashnot/httpclient/httpclient"
 	"flag"
 	"github.com/hashnot/function"
+	"github.com/hashnot/httpclient/httpclient"
 	"log"
 	"os"
 	"os/signal"
@@ -17,12 +17,13 @@ func failOnErr(err error, msg string) {
 }
 
 func main() {
-	client := new(httpclient.HttpClient)
-	err := function.UnmarshalFile("httpclient.yaml", client)
-	failOnErr(err, "")
-
 	verbose := flag.Bool("verbose", false, "Verbose")
+	cfgFile := flag.String("config", "httpclient.yaml", "Configuration file")
 	flag.Parse()
+
+	client := new(httpclient.HttpClient)
+	err := function.UnmarshalFile(*cfgFile, client)
+	failOnErr(err, "Error while unmarshaling config file")
 
 	err = client.Setup(*verbose)
 	failOnErr(err, "Failed to start")
